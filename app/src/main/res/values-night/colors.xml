@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="button_background">@color/black</color>
+    <color name="button_text">@color/white</color>
+    <color name="barcode_color">@android:color/white</color>
+</resources>

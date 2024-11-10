@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Permite el acceso al directorio de cache -->
+    <cache-path
+        name="cache"
+        path="." />
+
+    <!-- Ejemplo: Permite el acceso a archivos en el directorio de archivos de la app -->
+    <files-path
+        name="files"
+        path="." />
+
+    <!-- Si deseas añadir un directorio específico en el almacenamiento externo -->
+    <external-path
+        name="external_files"
+        path="Android/data/com.example.barcodescanner/files/" />
+</paths>

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="8dp"
+    android:layout_marginTop="8dp">
+
+    <ImageView
+        android:id="@+id/barcodeImage"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:contentDescription="Código de barras"
+        android:src="@drawable/ic_barcode"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:tint="@color/barcode_tint" />
+
+    <TextView
+        android:id="@+id/descriptionText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toEndOf="@id/barcodeImage"
+        app:layout_constraintTop_toTopOf="@id/barcodeImage"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <TextView
+        android:id="@+id/barcodeText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toBottomOf="@id/quantityText"
+        app:layout_constraintStart_toStartOf="@id/quantityText"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/expirationDateText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintStart_toStartOf="@id/descriptionText"
+        app:layout_constraintTop_toBottomOf="@id/descriptionText" />
+
+    <TextView
+        android:id="@+id/quantityText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintStart_toStartOf="@id/descriptionText"
+        app:layout_constraintTop_toBottomOf="@id/expirationDateText" />
+
+    <TextView
+        android:id="@+id/withdrawalDaysText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        app:layout_constraintStart_toEndOf="@id/quantityText"
+        app:layout_constraintTop_toTopOf="@id/quantityText" />
+
+    <TextView
+        android:id="@+id/userText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        app:layout_constraintStart_toStartOf="@id/barcodeText"
+        app:layout_constraintTop_toBottomOf="@id/barcodeText" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

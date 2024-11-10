@@ -1,0 +1,29 @@
+<resources>
+    <string name="app_name">Vencimientos Mass </string>
+    <string name="guardar">Guardar</string>
+    <string name="limpiar">Limpiar</string>
+    <string name="usuario_tienda">Usuario/Tienda</string>
+    <string name="d_as_de_retiro">Días de retiro</string>
+    <string name="cantidad">Cantidad</string>
+    <string name="fecha_de_vencimiento">Fecha de vencimiento</string>
+    <string name="ingrese_el_c_digo_de_barras_manualmente">Ingrese el código de barras manualmente</string>
+    <string name="sync">Sync</string>
+    <string name="ingrese_sku">Ingrese SKU</string>
+    <string name="ingrese_descripci_n">Ingrese descripción</string>
+    <string name="todo">TODO</string>
+    <string name="codigo_de_barras">Codigo de barras</string>
+    <string name="upload_to_firebase">Subir a Firebase</string>
+    <string name="upload_success">Datos subidos exitosamente a Firebase</string>
+    <string name="upload_error">Error al subir datos: %1$s</string>
+    <string name="uploading">Subiendo datos...</string>
+    <string name="app_logo">Logo de la aplicación</string>  <!-- Añadido -->
+    <!-- Firebase -->
+    <string name="default_web_client_id">590115074246-o0d1gjba4oblh52qg5uu7rm3ndhtjsua.apps.googleusercontent.com</string>
+    <!-- Versión -->
+    <string name="version_text">Versión %1$s</string>
+    <!-- Login -->
+    <string name="login_with_google">Continuar con Google</string>
+    <!-- Messages -->
+    <string name="error_login">Error al iniciar sesión: %1$s</string>
+    <string name="error_google_sign_in">Error de Google Sign In: %1$s</string>
+</resources>
