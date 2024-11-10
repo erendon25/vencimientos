@@ -128,7 +128,7 @@ class HistoryManager(context: Context) {
                 }
             }
             // Guardar los items que queremos mantener
-            historyDao.deleteAll() // Primero borramos todo
+            historyDao.deleteAll() // Primero borramos
             itemsToKeep.forEach { item ->
                 saveItem(item) // Guardamos los items filtrados
             }
