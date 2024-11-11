@@ -208,7 +208,6 @@ class HistoryFragment : Fragment(), HistoryAdapter.OnItemClickListener, HistoryA
     private fun showEditDialog(item: HistoryItem) {
         Log.d("HistoryFragment", "Mostrando diálogo de edición para: ${item.description}")
         val dialog = EditHistoryDialogFragment.newInstance(item)
-
         // Set up result listener
         childFragmentManager.setFragmentResultListener("itemUpdate", viewLifecycleOwner) { _, bundle ->
             @Suppress("DEPRECATION")

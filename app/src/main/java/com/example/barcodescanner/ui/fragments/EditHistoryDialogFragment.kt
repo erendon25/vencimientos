@@ -307,8 +307,8 @@ class EditHistoryDialogFragment : DialogFragment() {
     companion object {
         private const val ARG_ITEM = "item"
 
-        fun newInstance(item: HistoryItem): DialogFragment {
-            return DialogFragment().apply {
+        fun newInstance(item: HistoryItem): EditHistoryDialogFragment {
+            return EditHistoryDialogFragment().apply {
                 arguments = Bundle().apply {
                     putSerializable(ARG_ITEM, item)
                 }

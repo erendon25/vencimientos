@@ -78,8 +78,8 @@ class HistoryViewModel(private val context: Context) : ViewModel() {
                     onSuccess = {
                         historyManager.updateItem(item)
                         _error.value = "Actualización exitosa"
-                        _updateSuccess.value = UpdateState.SUCCESS
                         loadItems()
+                        _updateSuccess.value = UpdateState.SUCCESS
                     },
                     onFailure = { exception ->
                         _error.value = when {
