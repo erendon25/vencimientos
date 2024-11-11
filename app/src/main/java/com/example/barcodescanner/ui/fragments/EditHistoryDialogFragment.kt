@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
-class DialogFragment : DialogFragment() {
+class EditHistoryDialogFragment : DialogFragment() {
     private lateinit var item: HistoryItem
     private lateinit var viewModel: HistoryViewModel
     private lateinit var dialogContent: View
@@ -174,7 +174,12 @@ class DialogFragment : DialogFragment() {
             withdrawalDate = calculateWithdrawalDate(expirationDate, withdrawalDays)
         )
 
-        itemUpdateListener?.onItemUpdated(updatedItem)
+        // Enviar el resultado de vuelta
+        val result = Bundle().apply {
+            putSerializable("updatedItem", updatedItem)
+        }
+        parentFragmentManager.setFragmentResult("itemUpdate", result)
+        dismiss() // Cerrar el diálogo después de enviar el resultado
     }
 
     private fun setupProgressViews(view: View) {
@@ -297,6 +302,7 @@ class DialogFragment : DialogFragment() {
     private fun showToast(message: String) {
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
+
 
     companion object {
         private const val ARG_ITEM = "item"

@@ -184,7 +184,7 @@ class HistoryFragment : Fragment(), HistoryAdapter.OnItemClickListener, HistoryA
         if (actionMode != null) {
             toggleSelection(item)
         } else {
-            showEditDialog(item)
+            showEditDialog(item) // Asegúrate de que esto se esté llamando
         }
     }
 
@@ -206,20 +206,21 @@ class HistoryFragment : Fragment(), HistoryAdapter.OnItemClickListener, HistoryA
         }
     }
     private fun showEditDialog(item: HistoryItem) {
-        val dialog = DialogFragment.newInstance(item)
+        Log.d("HistoryFragment", "Mostrando diálogo de edición para: ${item.description}")
+        val dialog = EditHistoryDialogFragment.newInstance(item)
 
         // Set up result listener
         childFragmentManager.setFragmentResultListener("itemUpdate", viewLifecycleOwner) { _, bundle ->
             @Suppress("DEPRECATION")
             val updatedItem = bundle.getSerializable("updatedItem") as? HistoryItem
             updatedItem?.let {
+                Log.d("HistoryFragment", "Item actualizado: ${it.description}")
                 viewModel.updateItem(it)
             }
         }
 
         dialog.show(childFragmentManager, "edit_dialog")
     }
-
 
     private val actionModeCallback = object : ActionMode.Callback {
         override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
