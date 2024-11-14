@@ -9,6 +9,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class ExcelExporter {
+
     fun export(data: List<HistoryItem>, filePath: String) {
         val workbook: Workbook = XSSFWorkbook()
         val sheet: Sheet = workbook.createSheet("Datos_vencimientos")
@@ -65,15 +66,15 @@ class ExcelExporter {
         data.forEachIndexed { index, item ->
             val row: Row = sheet.createRow(index + 1)
 
-            // Crear celdas con el estilo de contenido
+            // Usar operador Elvis (?:) para manejar nullables
             createCell(row, 0, (index + 1).toString(), contentStyle)
             createCell(row, 1, item.barcode, contentStyle)
-            createCell(row, 2, item.sku, contentStyle)
-            createCell(row, 3, item.description, contentStyle)
+            createCell(row, 2, item.sku ?: "N/A", contentStyle)
+            createCell(row, 3, item.description ?: "N/A", contentStyle)
             createCell(row, 4, item.expirationDate, contentStyle)
             createCell(row, 5, calculateWithdrawalDate(item.expirationDate, item.withdrawalDays), contentStyle)
             createCell(row, 6, item.quantity.toString(), contentStyle)
-            createCell(row, 7, item.user.name, contentStyle)
+            createCell(row, 7, item.user?.name ?: "N/A", contentStyle) // Acceso seguro a user
             createCell(row, 8, item.withdrawalDays.toString(), contentStyle)
         }
 

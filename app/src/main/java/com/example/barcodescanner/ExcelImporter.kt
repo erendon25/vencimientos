@@ -28,13 +28,14 @@ class ExcelImporter(private val historyManager: HistoryManager) {
             try {
                 val item = createHistoryItemFromRow(row)
                 if (!isDuplicate(item)) {
-                    historyManager.saveItem(item)
+                    // Generar un ID único para Firebase
+                    val firebaseId = UUID.randomUUID().toString()
+                    historyManager.saveItemWithFirebaseId(item, firebaseId)
                     importedItems.add(item)
                 } else {
                     duplicateItems.add(item)
                 }
             } catch (e: Exception) {
-                // Log the error or handle it as needed
                 println("Error processing row $rowIndex: ${e.message}")
             }
         }

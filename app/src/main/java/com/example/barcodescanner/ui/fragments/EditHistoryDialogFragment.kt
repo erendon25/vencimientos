@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.text.Editable
 import android.text.InputFilter
 import android.text.TextWatcher
+import android.util.Log
 import android.view.View
 import android.widget.EditText
 import android.widget.TextView
@@ -168,18 +169,26 @@ class EditHistoryDialogFragment : DialogFragment() {
             .text.toString().toIntOrNull() ?: return
 
         val updatedItem = item.copy(
+            id = item.id,
+            firebaseId = item.firebaseId,
+            barcode = item.barcode,
+            sku = item.sku,
+            description = item.description,
             quantity = quantity,
             expirationDate = expirationDate,
             withdrawalDays = withdrawalDays,
-            withdrawalDate = calculateWithdrawalDate(expirationDate, withdrawalDays)
+            withdrawalDate = calculateWithdrawalDate(expirationDate, withdrawalDays),
+            user = item.user,
+            scanDate = item.scanDate
         )
 
-        // Enviar el resultado de vuelta
+        Log.d("EditHistoryDialogFragment", "Firebase ID del item a actualizar: ${updatedItem.firebaseId}")
+
         val result = Bundle().apply {
             putSerializable("updatedItem", updatedItem)
         }
         parentFragmentManager.setFragmentResult("itemUpdate", result)
-        dismiss() // Cerrar el diálogo después de enviar el resultado
+        dismiss()
     }
 
     private fun setupProgressViews(view: View) {

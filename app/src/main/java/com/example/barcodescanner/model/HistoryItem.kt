@@ -4,15 +4,16 @@ import java.io.Serializable
 import java.util.Objects
 
 data class HistoryItem(
-    val id: Long = 0, // ID para Room
+    val id: Long = 0L,
+    val firebaseId: String? = null, // Añadir este campo
     val barcode: String,
-    val sku: String,
-    val description: String,
+    val sku: String? = null,
+    val description: String? = null,
     val quantity: Int,
     val expirationDate: String,
     val withdrawalDays: Int,
-    val withdrawalDate: String?,
-    val user: User,
+    val withdrawalDate: String? = null,
+    val user: User? = null,
     val scanDate: String? = null
 ) : Serializable {
     override fun hashCode(): Int {

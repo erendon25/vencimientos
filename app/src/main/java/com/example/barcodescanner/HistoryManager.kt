@@ -22,12 +22,45 @@ class HistoryManager(context: Context) {
         historyDao = database.historyDao()
     }
 
-    suspend fun saveItem(item: HistoryItem) {
-        withContext(Dispatchers.IO) {
-            // Verificar si el item ya existe antes de guardarlo
-            if (!isItemAlreadyRegistered(item.barcode, item.expirationDate)) {
-                val entity = convertToEntity(item)
+    suspend fun saveItemWithFirebaseId(item: HistoryItem, firebaseId: String): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                // Verificar si ya existe un item con el mismo barcode y fecha
+                if (isItemAlreadyRegistered(item.barcode, item.expirationDate)) {
+                    return@withContext Result.failure(Exception("Item ya registrado localmente"))
+                }
+
+                val entity = convertToEntity(item).copy(firebaseId = firebaseId)
                 historyDao.insert(entity)
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+    suspend fun saveItemWithTransaction(item: HistoryItem, firebaseId: String): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                if (isItemAlreadyRegistered(item.barcode, item.expirationDate, firebaseId)) {
+                    return@withContext Result.failure(Exception("Item ya registrado"))
+                }
+
+                val entity = convertToEntity(item).copy(firebaseId = firebaseId)
+                historyDao.insert(entity)
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+    suspend fun getItemById(id: Long): HistoryItem? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val entity = historyDao.getItemById(id)
+                entity?.let { convertToHistoryItem(it) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error obteniendo item por ID", e)
+                null
             }
         }
     }
@@ -51,12 +84,33 @@ class HistoryManager(context: Context) {
         }
     }
 
-    suspend fun updateItem(updatedItem: HistoryItem) {
+    suspend fun updateItemById(
+        id: Long,
+        quantity: Int,
+        expirationDate: String,
+        withdrawalDays: Int,
+        withdrawalDate: String,
+        firebaseId: String? = null
+    ) {
         withContext(Dispatchers.IO) {
-            val entity = convertToEntity(updatedItem)
-            historyDao.update(entity)
+            try {
+                Log.d(TAG, "Actualizando item con ID: $id")
+                historyDao.updateItemById(
+                    id = id,
+                    quantity = quantity,
+                    expirationDate = expirationDate,
+                    withdrawalDays = withdrawalDays,
+                    withdrawalDate = withdrawalDate,
+                    firebaseId = firebaseId
+                )
+                Log.d(TAG, "Item actualizado exitosamente en base de datos local")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error actualizando item en base de datos local", e)
+                throw e
+            }
         }
     }
+
 
     suspend fun getItemsForWithdrawalDate(date: Date): List<HistoryItem> {
         return withContext(Dispatchers.IO) {
@@ -74,14 +128,29 @@ class HistoryManager(context: Context) {
         }
     }
 
-    suspend fun isItemAlreadyRegistered(barcode: String, expirationDate: String): Boolean {
+    suspend fun isItemAlreadyRegistered(
+        barcode: String,
+        expirationDate: String,
+        firebaseId: String? = null
+    ): Boolean {
         return withContext(Dispatchers.IO) {
-            historyDao.getItemByBarcodeAndExpiration(barcode, expirationDate) != null
+            if (firebaseId != null) {
+                // Si tenemos firebaseId, verificar excluyendo ese ID
+                historyDao.getItemByBarcodeAndExpirationExcludingFirebaseId(
+                    barcode,
+                    expirationDate,
+                    firebaseId
+                ) != null
+            } else {
+                // Si no hay firebaseId, usar la validación simple
+                historyDao.getItemByBarcodeAndExpiration(barcode, expirationDate) != null
+            }
         }
     }
+
     private fun convertToEntity(item: HistoryItem): HistoryItemEntity {
         return HistoryItemEntity(
-            id = 0, // Dejar que Room genere el ID
+            id = item.id, // Ahora ambos son Long
             barcode = item.barcode,
             sku = item.sku ?: "",
             description = item.description ?: "",
@@ -90,13 +159,14 @@ class HistoryManager(context: Context) {
             withdrawalDays = item.withdrawalDays,
             withdrawalDate = item.withdrawalDate ?: "",
             userName = item.user?.name ?: "",
-            scanDate = item.scanDate ?: ""
+            scanDate = item.scanDate ?: "",
+            firebaseId = item.firebaseId
         )
     }
-
     private fun convertToHistoryItem(entity: HistoryItemEntity): HistoryItem {
         return HistoryItem(
-            id = entity.id,
+            id = entity.id, // Ahora ambos son Long
+            firebaseId = entity.firebaseId,
             barcode = entity.barcode,
             sku = entity.sku,
             description = entity.description,
@@ -130,7 +200,10 @@ class HistoryManager(context: Context) {
             // Guardar los items que queremos mantener
             historyDao.deleteAll() // Primero borramos
             itemsToKeep.forEach { item ->
-                saveItem(item) // Guardamos los items filtrados
+                // Usar el firebaseId existente del item
+                item.firebaseId?.let { firebaseId ->
+                    saveItemWithFirebaseId(item, firebaseId)
+                }
             }
         }
     }

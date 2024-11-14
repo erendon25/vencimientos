@@ -44,6 +44,7 @@ class RegisterFragment : Fragment() {
     private lateinit var historyManager: HistoryManager
     private lateinit var productDatabase: ProductDatabase
     private lateinit var appUserManager: AppUserManager
+    private lateinit var productScanDao: ProductScanDao
 
     // Navigation arguments
     private val args: RegisterFragmentArgs by navArgs()
@@ -67,6 +68,7 @@ class RegisterFragment : Fragment() {
         historyManager = HistoryManager(requireContext())
         productDatabase = ProductDatabase(requireContext())
         appUserManager = AppUserManager(requireContext())
+        productScanDao = ProductScanDao(requireContext(), historyManager)
 
         setupUI()
         observeViewModel()
@@ -345,83 +347,92 @@ class RegisterFragment : Fragment() {
         datePickerDialog.show()
     }
 
-    // Save data to history manager
-
     private fun saveData() {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
+                showProgress()
                 val barcode = binding.barcodeEditText.text.toString()
-                if (historyManager.isItemAlreadyRegistered(barcode, binding.expirationDateTextView.text.toString())) {
-                    Toast.makeText(requireContext(), "Producto ya registrado", Toast.LENGTH_SHORT).show()
-                    return@launch
-                }
-                val product = productDatabase.getProduct(barcode)
-                val selectedUser = viewModel.selectedUser.value ?: return@launch
-
-                // Crear el registro local
-                val newItem = HistoryItem(
-                    id = 0, // SQLite generará el ID
-                    barcode = barcode,
-                    quantity = binding.quantityEditText.text.toString().toIntOrNull() ?: 0,
-                    expirationDate = binding.expirationDateTextView.text.toString(),
-                    withdrawalDays = binding.withdrawalDaysEditText.text.toString().toIntOrNull() ?: 0,
-                    withdrawalDate = calculateWithdrawalDate(
-                        binding.expirationDateTextView.text.toString(),
-                        binding.withdrawalDaysEditText.text.toString().toIntOrNull() ?: 0
-                    ),
-                    user = selectedUser,
-                    sku = product?.sku ?: "N/A",
-                    description = product?.description ?: "N/A",
-                    scanDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
-                )
-
-                // Guardar en el historial local
-                val localId = historyManager.saveItem(newItem)
-
-
-                // Crear y guardar el escaneo en Firebase
-                val productScanDao = ProductScanDao(requireContext())
-                // Primero calculamos la fecha de retiro
                 val expirationDate = binding.expirationDateTextView.text.toString()
                 val withdrawalDays = binding.withdrawalDaysEditText.text.toString().toIntOrNull() ?: 0
-                // Calcular la fecha de retiro usando el formato correcto
-                val withdrawalDate = try {
-                    val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                    val expDate = sdf.parse(expirationDate)
-                    val calendar = Calendar.getInstance()
-                    calendar.time = expDate
-                    calendar.add(Calendar.DAY_OF_MONTH, -withdrawalDays)
-                    sdf.format(calendar.time)
-                } catch (e: Exception) {
-                    ""
-                }
 
+                // Obtener el producto actual
+                val product = productDatabase.getProduct(barcode)
+
+                // Preparar el ProductScanData
                 val scanData = ProductScanData(
                     sku = product?.sku ?: "N/A",
                     description = product?.description ?: "N/A",
-                    expirationDate = binding.expirationDateTextView.text.toString(),
+                    expirationDate = expirationDate,
                     quantity = binding.quantityEditText.text.toString().toIntOrNull() ?: 0,
-                    withdrawalDays = binding.withdrawalDaysEditText.text.toString().toIntOrNull() ?: 0,
-                    withdrawalDate = withdrawalDate,
+                    withdrawalDays = withdrawalDays,
+                    withdrawalDate = calculateWithdrawalDate(expirationDate, withdrawalDays),
                     scanDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date()),
-                    storeName = selectedUser.name, // Asumiendo que el nombre de la tienda está en el usuario seleccionado
+                    storeName = viewModel.selectedUser.value?.name ?: "",
                     scannerName = FirebaseAuth.getInstance().currentUser?.displayName ?: "Usuario desconocido"
                 )
 
-                productScanDao.saveProductScan(barcode, scanData).onSuccess {
-                    Toast.makeText(requireContext(), "Producto Registrado", Toast.LENGTH_SHORT).show()
-                    clearForm()
-                    findNavController().navigate(R.id.action_registerFragment_to_scanFragment)
-                }.onFailure { e ->
-                    Toast.makeText(requireContext(), "Error al guardar en la nube: ${e.message}", Toast.LENGTH_LONG).show()
-                }
+                // Primero guardar en Firebase
+                productScanDao.saveProductScan(barcode, scanData)
+                    .onSuccess { firebaseId ->
+                        // Verificar duplicados incluyendo el firebaseId
+                        if (!historyManager.isItemAlreadyRegistered(barcode, expirationDate, firebaseId)) {
+                            // Crear el HistoryItem
+                            val newItem = HistoryItem(
+                                id = 0,
+                                barcode = barcode,
+                                quantity = binding.quantityEditText.text.toString().toIntOrNull() ?: 0,
+                                expirationDate = expirationDate,
+                                withdrawalDays = withdrawalDays,
+                                withdrawalDate = calculateWithdrawalDate(
+                                    expirationDate,
+                                    withdrawalDays
+                                ),
+                                user = viewModel.selectedUser.value,
+                                sku = product?.sku ?: "N/A",
+                                description = product?.description ?: "N/A",
+                                scanDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date()),
+                                firebaseId = firebaseId // Importante: incluir el firebaseId
+                            )
 
+                            // Guardar localmente usando transacción
+                            historyManager.saveItemWithTransaction(newItem, firebaseId)
+                                .onSuccess {
+                                    showSuccess("Producto registrado correctamente")
+                                    clearForm()
+                                    findNavController().navigate(R.id.action_registerFragment_to_scanFragment)
+                                }
+                                .onFailure { e ->
+                                    showError("Error al guardar localmente: ${e.message}")
+                                }
+                        } else {
+                            showError("El producto ya está registrado")
+                        }
+                    }
+                    .onFailure { e ->
+                        showError("Error al guardar en Firebase: ${e.message}")
+                    }
             } catch (e: Exception) {
-                Log.e(TAG, "Error al guardar datos", e)
-                Toast.makeText(requireContext(), "Error al guardar los datos: ${e.message}", Toast.LENGTH_LONG).show()
+                showError("Error general: ${e.message}")
+            } finally {
+                hideProgress()
             }
         }
     }
+
+    private fun showProgress() {
+        binding.progressBar.visibility = View.VISIBLE
+        binding.saveButton.isEnabled = false
+    }
+    private fun hideProgress() {
+        binding.progressBar.visibility = View.GONE
+        binding.saveButton.isEnabled = true
+    }
+
+    private fun showSuccess(message: String) {
+        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+    }
+
+
     // Calculate withdrawal date based on expiration date and withdrawal days
     private fun calculateWithdrawalDate(expirationDate: String, withdrawalDays: Int): String {
         val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())

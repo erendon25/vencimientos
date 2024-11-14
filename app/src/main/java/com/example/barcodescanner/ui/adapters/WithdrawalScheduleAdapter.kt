@@ -37,7 +37,7 @@ class WithdrawalScheduleAdapter : ListAdapter<HistoryItem, WithdrawalScheduleAda
             expirationDateText.text = "Vence: ${item.expirationDate}"
             quantityText.text = "Cantidad: ${item.quantity}"
             withdrawalDaysText.text = "Días retiro: ${item.withdrawalDays}"
-            userText.text = "Usuario: ${item.user.name}"
+            userText.text = "Usuario: ${item.user?.name ?: "N/A"}"
         }
     }
 

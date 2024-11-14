@@ -18,7 +18,7 @@ import java.util.*
 
 class HistoryViewModel(private val context: Context) : ViewModel() {
     private val historyManager = HistoryManager(context)
-    private val productScanDao = ProductScanDao(context)
+    private val productScanDao = ProductScanDao(context, historyManager)
     private val _historyItems = MutableStateFlow<List<HistoryItem>>(emptyList())
     val historyItems = _historyItems.asStateFlow()
     private val _isLoading = MutableStateFlow(false)
@@ -52,49 +52,66 @@ class HistoryViewModel(private val context: Context) : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val documentExists = productScanDao.checkScanExists(item.id.toString())
-                Log.d("HistoryViewModel", if (documentExists) "Actualizando documento existente" else "Creando nuevo documento")
+                Log.d("HistoryViewModel", "Iniciando actualización del item: ${item.description}")
 
-                val result = if (!documentExists) {
-                    productScanDao.createScan(
-                        scanId = item.id.toString(),
-                        barcode = item.barcode,
-                        description = item.description,
-                        expirationDate = item.expirationDate,
-                        quantity = item.quantity,
-                        withdrawalDays = item.withdrawalDays,
-                        user = item.user
-                    )
-                } else {
-                    productScanDao.updateScan(
-                        scanId = item.id.toString(),
-                        expirationDate = item.expirationDate,
-                        quantity = item.quantity,
-                        withdrawalDays = item.withdrawalDays
-                    )
+                // Verificar existencia local primero
+                val localItem = historyManager.getItemById(item.id)
+                if (localItem == null) {
+                    _error.value = "Error: Item no encontrado localmente"
+                    _updateSuccess.value = UpdateState.ERROR
+                    return@launch
                 }
+
+                // Usar el firebaseId en lugar del id local
+                val firebaseId = localItem.firebaseId
+                if (firebaseId.isNullOrEmpty()) {
+                    _error.value = "Error: Item no tiene ID de Firebase asociado"
+                    _updateSuccess.value = UpdateState.ERROR
+                    return@launch
+                }
+                // Verificar existencia en Firebase
+                if (!productScanDao.checkScanExists(firebaseId)) {
+                    _error.value = "Error: Documento no encontrado en Firebase"
+                    _updateSuccess.value = UpdateState.ERROR
+                    return@launch
+                }
+
+                // Actualizar en Firebase primero
+                val result = productScanDao.updateScan(
+                    scanId = firebaseId,
+                    expirationDate = item.expirationDate,
+                    quantity = item.quantity,
+                    withdrawalDays = item.withdrawalDays,
+                    sku = localItem.sku ?: "",
+                    description = localItem.description ?: ""
+                )
 
                 result.fold(
                     onSuccess = {
-                        historyManager.updateItem(item)
+                        // Actualizar localmente con el firebaseId
+                        val withdrawalDate = calculateWithdrawalDate(item.expirationDate, item.withdrawalDays)
+                        historyManager.updateItemById(
+                            id = item.id,
+                            quantity = item.quantity,
+                            expirationDate = item.expirationDate,
+                            withdrawalDays = item.withdrawalDays,
+                            withdrawalDate = withdrawalDate,
+                            firebaseId = firebaseId  // Pasar el firebaseId existente
+                        )
+
+                        Log.d("HistoryViewModel", "Actualización en Firebase y local exitosa")
                         _error.value = "Actualización exitosa"
-                        loadItems()
                         _updateSuccess.value = UpdateState.SUCCESS
+                        loadItems()
                     },
                     onFailure = { exception ->
-                        _error.value = when {
-                            exception.message?.contains("no autenticado") == true ->
-                                "Usuario no autenticado"
-                            exception.message?.contains("no asociado") == true ->
-                                "Usuario no asociado a una tienda"
-                            exception.message?.contains("permisos") == true ->
-                                "No tienes permisos para editar este registro"
-                            else -> "Error al actualizar: ${exception.message}"
-                        }
+                        Log.e("HistoryViewModel", "Error en actualización de Firebase", exception)
+                        _error.value = "Error al actualizar en Firebase: ${exception.message}"
                         _updateSuccess.value = UpdateState.ERROR
                     }
                 )
             } catch (e: Exception) {
+                Log.e("HistoryViewModel", "Error general en actualización", e)
                 _error.value = "Error general: ${e.message}"
                 _updateSuccess.value = UpdateState.ERROR
             } finally {
@@ -102,6 +119,22 @@ class HistoryViewModel(private val context: Context) : ViewModel() {
             }
         }
     }
+    private fun calculateWithdrawalDate(expirationDate: String, withdrawalDays: Int): String {
+        return try {
+            val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+            val expDate = sdf.parse(expirationDate) ?: return ""
+            val calendar = Calendar.getInstance()
+            calendar.time = expDate
+            calendar.add(Calendar.DAY_OF_MONTH, -withdrawalDays)
+            sdf.format(calendar.time)
+        } catch (e: Exception) {
+            Log.e("HistoryViewModel", "Error calculando fecha de retiro", e)
+            ""
+        }
+    }
+
+
+
 
     fun resetUpdateStatus() {
         _updateSuccess.value = UpdateState.IDLE

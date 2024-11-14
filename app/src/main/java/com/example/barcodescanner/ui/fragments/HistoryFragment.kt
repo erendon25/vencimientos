@@ -175,8 +175,8 @@ class HistoryFragment : Fragment(), HistoryAdapter.OnItemClickListener, HistoryA
             SortOrder.DATE_ASC -> items.sortedBy { it.scanDate }
             SortOrder.DESCRIPTION_ASC -> items.sortedBy { it.description }
             SortOrder.DESCRIPTION_DESC -> items.sortedByDescending { it.description }
-            SortOrder.USER_ASC -> items.sortedBy { it.user.name }
-            SortOrder.USER_DESC -> items.sortedByDescending { it.user.name }
+            SortOrder.USER_ASC -> items.sortedBy { it.user?.name ?: "" }  // Añadir safe call
+            SortOrder.USER_DESC -> items.sortedByDescending { it.user?.name ?: "" }  // Añadir safe call
         }
     }
 
@@ -315,10 +315,18 @@ class HistoryFragment : Fragment(), HistoryAdapter.OnItemClickListener, HistoryA
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 historyManager.deleteItem(item)
-                viewModel.loadItems() // Recargar la lista
+                // Creamos una nueva lista sin el item eliminado
+                val updatedList = historyAdapter.currentList.toMutableList()
+                updatedList.removeAt(lastDeletedPosition)
+                // Actualizamos el adapter inmediatamente
+                historyAdapter.updateItems(updatedList)
+                // Recargamos los items después
+                viewModel.loadItems()
                 showUndoSnackbar()
             } catch (e: Exception) {
                 showError("Error al eliminar el elemento: ${e.message}")
+                // Si hay error, restauramos el item en la UI
+                historyAdapter.notifyDataSetChanged()
             }
         }
     }
@@ -336,9 +344,15 @@ class HistoryFragment : Fragment(), HistoryAdapter.OnItemClickListener, HistoryA
             try {
                 lastDeletedItem?.let { item ->
                     if (!historyManager.isItemAlreadyRegistered(item.barcode, item.expirationDate)) {
-                        historyManager.saveItem(item)
-                        viewModel.loadItems() // Recargar la lista
-                        showError("Elemento restaurado")
+                        // Usar el firebaseId existente del item eliminado
+                        item.firebaseId?.let { fbId ->
+                            historyManager.saveItemWithFirebaseId(item, fbId)
+                            viewModel.loadItems() // Recargar la lista
+                            showError("Elemento restaurado")
+                        } ?: run {
+                            // Si no hay firebaseId, mostrar error
+                            showError("No se puede restaurar el elemento: falta ID de Firebase")
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -373,31 +387,31 @@ class HistoryFragment : Fragment(), HistoryAdapter.OnItemClickListener, HistoryA
             lastDeletedItem?.let { item ->
                 try {
                     if (!historyManager.isItemAlreadyRegistered(item.barcode, item.expirationDate)) {
-                        historyManager.saveItem(item)
-                        // Forzar recarga inmediata
-                        viewModel.loadItems()
-                        // Notificar al adaptador del cambio específico
-                        historyAdapter.notifyItemInserted(lastDeletedPosition)
+                        // Usar el firebaseId del item eliminado
+                        item.firebaseId?.let { fbId ->
+                            historyManager.saveItemWithFirebaseId(item, fbId)
+                            // Forzar recarga inmediata
+                            viewModel.loadItems()
+                            // Notificar al adaptador del cambio específico
+                            historyAdapter.notifyItemInserted(lastDeletedPosition)
 
-                        view?.let { fragmentView ->
-                            Snackbar.make(
-                                fragmentView,
-                                "Elemento restaurado",
-                                Snackbar.LENGTH_SHORT
-                            ).show()
+                            view?.let { fragmentView ->
+                                Snackbar.make(
+                                    fragmentView,
+                                    "Elemento restaurado",
+                                    Snackbar.LENGTH_SHORT
+                                ).show()
+                            }
+                        } ?: run {
+                            // Manejar el caso donde no hay firebaseId
+                            showError("No se puede restaurar el elemento: falta ID de Firebase")
                         }
                     }
                     lastDeletedItem = null
                     lastDeletedPosition = -1
                 } catch (e: Exception) {
                     Log.e("HistoryFragment", "Error al deshacer eliminación", e)
-                    view?.let { fragmentView ->
-                        Snackbar.make(
-                            fragmentView,
-                            "Error al deshacer la eliminación",
-                            Snackbar.LENGTH_SHORT
-                        ).show()
-                    }
+                    showError("Error al deshacer la eliminación")
                 }
             }
         }

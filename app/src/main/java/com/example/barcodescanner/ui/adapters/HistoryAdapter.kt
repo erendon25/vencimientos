@@ -42,7 +42,7 @@ class HistoryAdapter(
             quantityText.text = "Cantidad: ${item.quantity}"
             barcodeText.text = item.barcode
             expirationDateText.text = "Expira: ${item.expirationDate}"
-            userTextView.text = "Usuario: ${item.user.name}"
+            userTextView.text = "Usuario: ${item.user?.name ?: "N/A"}"
             withdrawalDateText.text = "Retiro: ${calculateWithdrawalDate(item.expirationDate, item.withdrawalDays)}"
 
             root.setOnClickListener {
